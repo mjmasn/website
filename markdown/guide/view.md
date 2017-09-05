@@ -1,6 +1,3 @@
-!{"title": "Editor View Guide",
-  "template": "guide"}
-
 <style>
   .box {
     color: white;
@@ -12,18 +9,17 @@
   }
 </style>
 
-# Editor Views
-
-A ProseMirror [editor view](##view.EditorView) is a user-interface
-component that displays an [editor state](../state/) to the user, and
+A ProseMirror [editor view](##view.EditorView) is a user interface
+component that displays an [editor state](#state) to the user, and
 allows them to perform editing actions on it.
 
-The definition of ‘editing actions’ used by the core view component is
+The definition of _editing actions_ used by the core view component is
 rather narrow—it handles direct interaction with the editing surface,
 such as typing, clicking, copying, pasting, and dragging, but not much
 beyond that. This means that things like displaying a menu, or even
 providing a full set of key bindings, lie outside of the
-responsibility of the core view component.
+responsibility of the core view component, and have to be arranged
+through plugins.
 
 ## Editable DOM
 
@@ -39,7 +35,7 @@ selection](https://developer.mozilla.org/en-US/docs/Web/API/Selection)
 corresponds to the selection in the editor state.
 
 It also registers event handlers for many DOM events, which translate
-the event into the appropriate [transactions](../state/#transactions).
+the events into the appropriate [transactions](#state.transactions).
 For example, when pasting, the pasted content is
 [parsed](##view.EditorProps.clipboardParser) as a ProseMirror document
 slice, and then inserted into the document.
@@ -69,14 +65,14 @@ given to the view using its
 [`updateState`](##view.EditorView.updateState) method.
 
 <div style="text-align: center; font-size: 140%">
-  <div style="font-size: 90%; margin-bottom: -.5em">user interaction</div>
+  <div class=box style="background: #c33;"><strong>DOM event</strong></div>
   <div>↗<span style="width: 5em; display: inline-block;"></span>↘</div>
   <div>
     <div class=box style="margin-right: 4em; background: #55b"><strong>EditorView</strong></div>
     <div class=box style="background: #77e"><strong>Transaction</strong></div>
   </div>
   <div>↖<span style="width: 5em; display: inline-block;"></span>↙</div>
-  <div style="font-size: 90%; margin-top: -.5em">updated state</div>
+  <div class=box style="background: #446;">new <strong>EditorState</strong></div>
 </div>
 
 This creates a straightforward, cyclic data flow, as opposed to the
@@ -128,19 +124,20 @@ function draw() {
 ## Efficient updating
 
 One way to implement [`updateState`](##view.EditorView.updateState)
-would be to simply redraw the document every time it is called. For
-bigger documents, that would not be very fast, though.
+would be to simply redraw the document every time it is called. But
+for large documents, that would be really slow.
 
-But since, at the time of updating, the view has access to both the
-old document and the new, it can compare them, and leave the parts of
-the DOM that correspond to unchanged nodes alone. ProseMirror does
-this, allowing it to do very little work for typical updates.
+Since, at the time of updating, the view has access to both the old
+document and the new, it can compare them, and leave the parts of the
+DOM that correspond to unchanged nodes alone. ProseMirror does this,
+allowing it to do very little work for typical updates.
 
 In some cases, like updates that correspond to typed text, which was
 already added to the DOM by the browser's own editing actions,
-updating the state doesn't need to change the DOM at all. (When such a
-transaction is canceled or modified somehow, the view _will_ undo the
-DOM change to make sure the DOM and the state remain synchronized.)
+ensuring the DOM and state are coherent doesn't require any DOM
+changes at all. (When such a transaction is canceled or modified
+somehow, the view _will_ undo the DOM change to make sure the DOM and
+the state remain synchronized.)
 
 Similarly, the DOM selection is only updated when it is actually out
 of sync with the selection in the state, to avoid disrupting the
@@ -154,7 +151,7 @@ enter the next long line).
 ‘Props’ is a useful, if somewhat vague, term taken from
 [React](https://facebook.github.io/react/docs/components-and-props.html).
 Props are like parameters to a UI component. Ideally, the set of props
-that the component gets completely define its behavior.
+that the component gets completely defines its behavior.
 
 ```javascript
 let view = new EditorView({
@@ -168,7 +165,9 @@ As such, the current [state](##view.DirectEditorProps.state) is one
 prop. The value of other props can also vary over time, if the code
 that controls the component [updates](##view.EditorView.setProps)
 them, but aren't considered _state_, because the component itself
-won't change them.
+won't change them. The [`updateState`](##view.EditorView.updateState)
+method is just a shorthand to updating the [`state`
+prop](##view.DirectEditorProps.state).
 
 Plugins are also allowed to [declare](##state.PluginSpec.props) props,
 except for [`state`](##view.DirectEditorProps.state) and
@@ -261,12 +260,13 @@ yellow-background inline decoration to every 4th position. That's not
 terribly useful, but sort of resembles use cases like highlighting
 search matches or annotated regions.
 
-When a transaction is applied to the state, the plugin's `apply`
-method maps the decoration set forward, causing the decorations to
-stay in place and ‘fit’ the new document shape. The mapping method is,
-for typical, local changes, quite efficient by exploiting the tree
-shape of the decoration set—only the parts of the tree that are
-actually touched by the changes need to be rebuilt.
+When a transaction is applied to the state, the plugin state's
+[`apply` method](##state.StateField.apply) maps the decoration set
+forward, causing the decorations to stay in place and ‘fit’ the new
+document shape. The mapping method is (for typical, local changes)
+made efficient by exploiting the tree shape of the decoration set—only
+the parts of the tree that are actually touched by the changes need to
+be rebuilt.
 
 (In a real-world plugin, the `apply` method would also be the place
 where you [add](##view.DecorationSet.add) or
@@ -282,7 +282,7 @@ causing the decorations to show up in the view.
 There is one more way in which you can influence the way the editor
 view draws your document. [Node views](##view.NodeView) make it
 possible to [define](##view.EditorProps.nodeViews) a sort of miniature
-UI-components for individual nodes in your document. They allow you to
+UI components for individual nodes in your document. They allow you to
 render their DOM, define the way they are updated, and write custom
 code to react to events.
 
@@ -312,7 +312,7 @@ class ImageView {
 The view object that the example defines for image nodes creates its
 own custom DOM node for the image, with an event handler added, and
 declares, with a `stopEvent` method, that ProseMirror should ignore
-events froming from that DOM node.
+events coming from that DOM node.
 
 You'll often want interaction with the node to have some effect on the
 actual node in the document. But to create a transaction that changes
@@ -390,7 +390,7 @@ content. Node views support two approaches to handling content: you
 can let the ProseMirror library manage it, or you can manage it
 entirely yourself. If you provide a [`contentDOM`
 property](##view.NodeView.contentDOM), the library will render the
-node's content into that, and handle content updating. If you don't,
+node's content into that, and handle content updates. If you don't,
 the content becomes a black box to the editor, and how you display it
 and let the user interact with it is entirely up to you.
 
@@ -408,4 +408,5 @@ you must verify that this is a node that this node view can handle.
 The `update` method in the example first checks whether the new node
 is a paragraph, and bails out if that's not the case. Then it makes
 sure that the `"empty"` class is present or absent, depending on the
-content of the new node, and returns true.
+content of the new node, and returns true, to indicate that the update
+succeeded (at which point the node's content will be updated).

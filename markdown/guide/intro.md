@@ -1,8 +1,3 @@
-!{"title": "ProseMirror Guide",
-  "template": "guide"}
-
-# ProseMirror Guide
-
 ProseMirror provides a set of tools and concepts for building rich
 text editors, using user interface inspired by
 what-you-see-is-what-you-get, but trying to avoid the pitfalls of that
@@ -29,7 +24,7 @@ modules that implement similar functionality.
 The core modules are:
 
  - [`prosemirror-model`](##model) defines the editor's [document
-   model](#../doc/), the data structure used to describe the content
+   model](#doc), the data structure used to describe the content
    of the editor.
 
  - [`prosemirror-state`](##state) provides the data structure that
@@ -91,16 +86,17 @@ should do. We'll get to that in a moment.
 
 ## Transactions
 
-I said that the view ‘generates state transactions’ when the user
-types. What that means is that it does not just modify the document
-in-place and implicitly update its state in that way. Instead every
-change causes a _transaction_ to be created, which describes the
-changes that are made to state, and can be applied to create a _new_
-state, which is then used to update the view.
+When the user types, or otherwise interacts with the view, it
+generates ‘state transactions’. What that means is that it does not
+just modify the document in-place and implicitly update its state in
+that way. Instead, every change causes a
+[_transaction_](#state.transactions) to be created, which describes
+the changes that are made to the state, and can be applied to create a
+_new_ state, which is then used to update the view.
 
 By default this all happens under the cover, but you can hook into by
-writing plugins or configuring your view. For example, this code adds
-a
+writing [plugins](#state.plugins) or configuring your view. For
+example, this code adds a
 [`dispatchTransaction`](##view.DirectEditorProps.dispatchTransaction)
 [prop](##view.EditorProps), which will be called whenever a
 transaction is created:
@@ -112,24 +108,27 @@ let state = EditorState.create({schema})
 let view = new EditorView(document.body, {
   state,
   dispatchTransaction(transaction) {
-    console.log("Something happened:", transaction)
+    console.log("Document size went from", transaction.before.content.size,
+                "to", transaction.doc.content.size)
     let newState = view.state.apply(transaction)
     view.updateState(newState)
   }
 })
 ```
 
-_Every_ state update has to go through `updateState`, and every normal
+_Every_ state update has to go through
+[`updateState`](##view.EditorView.updateState), and every normal
 editing update will happen by dispatching a transaction.
 
 ## Plugins
 
-Plugins can be used to extend the behavior of the editor and the
-editor state in various ways. Some are relatively simple, like the
-[keymap](##keymap) plugin that binds actions to keyboard input, others
-are more involved, like the [history](##history) plugin which
-implements an undo history by observing transactions and storing their
-inverse in case the user wants to undo them.
+Plugins are used to extend the behavior of the editor and editor state
+in various ways. Some are relatively simple, like the
+[keymap](##keymap) plugin that binds [actions](#commands) to
+keyboard input. Others are more involved, like the
+[history](##history) plugin which implements an undo history by
+observing transactions and storing their inverse in case the user
+wants to undo them.
 
 Let's add those two plugins to our editor to get undo/redo
 functionality:
@@ -157,9 +156,9 @@ last change.
 ## Commands
 
 The `undo` and `redo` values that the previous example bound to keys
-are a special kind of functions called ‘commands’. Most editing
-actions are written as commands which can be bound to keys, hooked up
-to menus, or otherwise exposed to the user.
+are a special kind of functions called [_commands_](#commands).
+Most editing actions are written as commands which can be bound to
+keys, hooked up to menus, or otherwise exposed to the user.
 
 The `prosemirror-commands` package provides a number of basic editing
 commands, along with a minimal keymap that you'll probably want to
@@ -184,7 +183,8 @@ let view = new EditorView(document.body, {state})
 At this point, you have a basically working editor.
 
 To add a menu, additional keybindings for schema-specific things, and
-so on, you might want to look into the `prosemirror-example-setup`
+so on, you might want to look into the
+[`prosemirror-example-setup`](https://github.com/prosemirror/prosemirror-example-setup)
 package. This is a module that provides you with an array of plugins
 that set up a baseline editor, but as the name suggests, it is meant
 more as an example than as a production-level library. For a
@@ -196,16 +196,16 @@ code that sets things up exactly the way you want.
 A state's document lives under its [`doc`](##state.EditorState.doc)
 property. This is a read-only data structure, representing the
 document as a hierarchy of nodes, somewhat like the browser DOM. A
-simple document might be a `doc` node containing two `paragraph`
-nodes, each containing a single `text` node. You can read more about
-the document data structure in the [guide](../doc/) about it.
+simple document might be a `"doc"` node containing two `"paragraph"`
+nodes, each containing a single `"text"` node. You can read more about
+the document data structure in the [guide](#doc) about it.
 
 When initializing a state, you can give it an initial document to use.
 In that case, the `schema` field is optional, since the schema can be
 taken from the document.
 
 Here we initialize a state by parsing the content found in the DOM
-element with the `content` ID, using the DOM parser mechanism, which
+element with the ID `"content"`, using the DOM parser mechanism, which
 uses information supplied by the schema about which DOM nodes map to
 which elements in that schema:
 
@@ -219,24 +219,3 @@ let state = EditorState.create({
   doc: DOMParser.fromSchema(schema).parse(content)
 })
 ```
-
-## Props
-
-[Props](##view.EditorProps) are values that can be used to configure
-how the editor behaves. They can come from plugins, or be passed
-directly to the [`EditorView`](##view.EditorView^constructor)
-constructor, as we did with the `dispatchTransaction` prop earlier.
-
-Many props take the shape of functions that are called when a certain
-thing happens. Some, such as
-[`handleKeyDown`](##view.EditorProps.handleKeyDown), can return true
-to indicate that they handled the event and no further action needs to
-be taken. Directly specified props take precedence, after that, the
-plugins each get a chance to respond to the event, in the order in
-which they were specified.
-
-Some props influence the way the document is rendered. You can use
-[`decorations`](##view.EditorProps.decorations) to overlay styling and
-widgets on your document, and the
-[`nodeViews`](##view.EditorProps.nodeViews) to customize the way the
-DOM representation of specific document nodes works.
