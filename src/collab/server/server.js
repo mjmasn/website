@@ -24,7 +24,12 @@ class Output {
 
   // Write the response.
   resp(resp) {
-    resp.writeHead(this.code, {"Content-Type": this.type})
+    resp.writeHead(this.code, {
+        "Content-Type": this.type,
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS, GET, POST, HEAD",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, Content-Length, X-Requested-With"
+    })
     resp.end(this.body)
   }
 }
@@ -166,3 +171,7 @@ handle("POST", ["docs", null, "events"], (data, id, req) => {
   else
     return Output.json(result)
 })
+
+handle("OPTIONS", ["docs", null, "events"], (data, id, req) => {
+    return new Output(200, "");
+});
